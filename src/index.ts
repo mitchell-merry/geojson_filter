@@ -25,14 +25,14 @@ function getFilterValues(filterPath: string): Promise<string[]> {
         });
     
         // On line event, push the value to the filterValues object
-        rl.on('line', (line: string) => filterValues.push(line))
+        rl.on('line', (line: string) => filterValues.push(line.toLowerCase()))
 
         // On close resolve the promise
         rl.on('close', () => resolve(filterValues));
     });
 }
 
-function filterDataset(dataFilepath, filterFilepath, filterProperty, changeValueToFilterValue = true): Promise<void> {
+function filterDataset(dataFilepath, filterFilepath, filterProperty, changeValueToFilterValue = true, removeFilterAfterFound = true): Promise<void> {
     return new Promise(async (resolve, reject) => {
         /* Read and filter */
         let filterVals = await getFilterValues(filterFilepath);
@@ -42,7 +42,7 @@ function filterDataset(dataFilepath, filterFilepath, filterProperty, changeValue
         const filteredData: FeatureCollection = { type: "FeatureCollection", features: [] };
 
         stream.on('data', (data: Feature) => {
-            const val = data.properties[filterProperty];
+            const val = data.properties[filterProperty].toLowerCase();
             const matches = filterVals.filter(filterVal => val.includes(filterVal));
             let match = undefined;
 
@@ -66,12 +66,12 @@ function filterDataset(dataFilepath, filterFilepath, filterProperty, changeValue
             }
             
             // Renames "Greendale (Liverpool - NSW)" to "Greendale" for example, which is what we usually want.
-            if(changeValueToFilterValue) data.properties[filterProperty] = match;
+            if(changeValueToFilterValue) data.properties[filterProperty] = match.toLowerCase();
 
             console.log(`[${valueCount-filterVals.length+1}/${valueCount}] Found ${data.properties[filterProperty]}...`);
             filteredData.features.push(data);
 
-            filterVals = filterVals.filter(i => i !== match);
+            if(removeFilterAfterFound) filterVals = filterVals.filter(i => i !== match);
         });
 
         stream.on('close', () => {
@@ -93,4 +93,4 @@ function filterDataset(dataFilepath, filterFilepath, filterProperty, changeValue
     })
 }
 
-filterDataset("AUS_SUB.geojson", "LVP_SUB", "SSC_NAME_2016");
+filterDataset("KH_DISTRICTS.geojson", "KH_PNP_DISTRICTS", "admin1Name_en", false, false);
